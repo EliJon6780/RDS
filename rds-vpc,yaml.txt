@@ -1,0 +1,145 @@
+# Description of what this change includes
+# Revision number
+# Date
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template to create a VPC named VPC-elijon6780
+  in the AWS US-West-2 region across three Availability Zones.
+
+Rules:
+  MustDeployInUSWest2:
+    Assertions:
+      - Assert: !Equals
+          - !Ref AWS::Region
+          - us-west-2
+        AssertDescription: This template must be deployed in the us-west-2 region.
+
+Resources:
+  StudentVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.60.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: VPC-elijon6780
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IGW-elijon6780
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref StudentVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StudentVPC
+      Tags:
+        - Key: Name
+          Value: Public-RT-elijon6780
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetAZ1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudentVPC
+      CidrBlock: 10.60.1.0/24
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs us-west-2
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet-us-west-2a-elijon6780
+
+  PublicSubnetAZ2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudentVPC
+      CidrBlock: 10.60.2.0/24
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs us-west-2
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet-us-west-2b-elijon6780
+
+  PublicSubnetAZ3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudentVPC
+      CidrBlock: 10.60.3.0/24
+      AvailabilityZone: !Select
+        - 2
+        - !GetAZs us-west-2
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet-us-west-2c-elijon6780
+
+  PublicSubnetAZ1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetAZ1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetAZ2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetAZ2
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetAZ3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetAZ3
+      RouteTableId: !Ref PublicRouteTable
+
+  RdsInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      VPCSecurityGroups:
+        - <SECURITY-GROUP-ID>
+      AllocatedStorage: '5'
+      DBInstanceClass: db.t3.micro
+      DBInstanceIdentifier: playground-db
+      Engine: MySQL
+      MasterUsername: Admin
+      MasterUserPassword: CloudAcademy123!
+
+Outputs:
+  VPCId:
+    Description: ID of the created VPC.
+    Value: !Ref StudentVPC
+
+  VPCName:
+    Description: Name tag assigned to the VPC.
+    Value: VPC-elijon6780
+
+  Region:
+    Description: AWS region where this stack must be deployed.
+    Value: !Ref AWS::Region
+
+  AvailabilityZones:
+    Description: Three Availability Zones used by the VPC subnets.
+    Value: !Join
+      - ', '
+      - - !GetAtt PublicSubnetAZ1.AvailabilityZone
+        - !GetAtt PublicSubnetAZ2.AvailabilityZone
+        - !GetAtt PublicSubnetAZ3.AvailabilityZone
